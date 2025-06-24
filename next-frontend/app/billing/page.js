@@ -21,6 +21,7 @@ export default function BillingPage() {
   // Bill state
   const [billMsg, setBillMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [lastBillId, setLastBillId] = useState(null);
 
   // Fetch customers and inventory
   useEffect(() => {
@@ -124,10 +125,12 @@ export default function BillingPage() {
     const data = await res.json();
     if (res.ok) {
       setBillMsg(`Bill created! Total: ₹${data.total}`);
+      setLastBillId(data.bill_id);
       setBillItems([]);
       fetchInventory();
     } else {
       setBillMsg(data.error || "Billing failed.");
+      setLastBillId(null);
     }
     setSubmitting(false);
   };
@@ -257,7 +260,31 @@ export default function BillingPage() {
             {submitting ? "Processing..." : "Create Bill"}
           </button>
         </div>
-        {billMsg && <div className="mt-4 text-center text-lg text-green-700 dark:text-green-400 font-semibold">{billMsg}</div>}
+        {billMsg && (
+          <div className="mt-4 text-center text-lg text-green-700 dark:text-green-400 font-semibold">
+            {billMsg}
+            {lastBillId && (
+              <div className="flex flex-col sm:flex-row gap-2 justify-center mt-4">
+                <a
+                  href={`http://localhost:8000/api/inventory/bill/${lastBillId}/pdf/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 font-semibold text-base"
+                >
+                  Print Bill (PDF)
+                </a>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent('Here is your bill: http://localhost:8000/api/inventory/bill/' + lastBillId + '/pdf/')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-semibold text-base"
+                >
+                  Share to WhatsApp
+                </a>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

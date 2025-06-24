@@ -4,6 +4,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Inventory, Customer, Bill, BillItem
 from django.db import transaction
+from django.http import HttpResponse
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 # Create your views here.
 
@@ -169,3 +172,81 @@ def bill_details(request, id):
         return Response(data)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def bill_pdf(request, id):
+    try:
+        bill = Bill.objects.get(id=id)
+        items = BillItem.objects.filter(bill=bill)
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="bill_{bill.id}.pdf"'
+        p = canvas.Canvas(response, pagesize=letter)
+        width, height = letter
+        y = height - 50
+
+        # Header Section
+        p.setFont("Helvetica-Bold", 16)
+        p.drawCentredString(width / 2, y, "CAR PARTS AND SERVICES")
+        y -= 20
+        p.setFont("Helvetica", 10)
+        p.drawCentredString(width / 2, y, "123 Main Street, YourCity, State, ZIP")
+        p.drawCentredString(width / 2, y - 15, "Phone: 9876543210 | GSTIN: 22AAAAA0000A1Z5")
+        y -= 40
+
+        # Bill Info
+        p.setFont("Helvetica", 10)
+        p.drawString(50, y, f"Bill No: {bill.id}")
+        p.drawString(300, y, f"Date: {bill.date.strftime('%d-%m-%Y %H:%M')}")
+        y -= 15
+        p.drawString(50, y, f"Customer: {bill.customer.name}")
+        y -= 25
+
+        # Table Header
+        p.setFont("Helvetica-Bold", 10)
+        p.line(45, y, width - 45, y)
+        y -= 12
+        p.drawString(50, y, "S.No")
+        p.drawString(90, y, "Item")
+        p.drawString(250, y, "Qty")
+        p.drawString(300, y, "Rate")
+        p.drawString(370, y, "Total")
+        y -= 10
+        p.line(45, y, width - 45, y)
+        y -= 15
+
+        # Items
+        p.setFont("Helvetica", 10)
+        total = 0
+        for idx, item in enumerate(items, 1):
+            if y < 100:
+                p.showPage()
+                y = height - 50
+            line_total = item.quantity * item.price
+            total += line_total
+            p.drawString(50, y, str(idx))
+            p.drawString(90, y, item.inventory.name[:25])
+            p.drawString(250, y, str(item.quantity))
+            p.drawString(300, y, f"{item.price:.2f}")
+            p.drawString(370, y, f"{line_total:.2f}")
+            y -= 15
+
+        # Total Line
+        y -= 5
+        p.line(45, y, width - 45, y)
+        y -= 20
+        p.setFont("Helvetica-Bold", 11)
+        p.drawString(300, y, "Grand Total:")
+        p.drawString(400, y, f"{total:.2f}")
+
+        # Footer
+        y -= 40
+        p.setFont("Helvetica-Oblique", 11)
+        p.drawCentredString(width / 2, y, "Thank you for your purchase!")
+        p.drawCentredString(width / 2, y - 15, "Visit Again")
+
+        p.showPage()
+        p.save()
+        return response
+
+    except Exception as e:
+        return HttpResponse(f"Error generating PDF: {str(e)}", status=500)

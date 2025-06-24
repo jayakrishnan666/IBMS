@@ -170,6 +170,14 @@ export default function CustomersPage() {
                         <td className="px-3 py-2 text-right">₹{bill.total}</td>
                         <td className="px-3 py-2 text-right">
                           <button className="text-blue-600 hover:underline" onClick={() => handleViewBillDetails(bill.id)}>View</button>
+                          <a
+                            href={`http://localhost:8000/api/inventory/bill/${bill.id}/pdf/`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-blue-700 text-white px-2 py-1 rounded ml-2 hover:bg-blue-800"
+                          >
+                            Download
+                          </a>
                         </td>
                       </tr>
                     ))}
