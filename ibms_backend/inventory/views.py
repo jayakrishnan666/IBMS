@@ -2,11 +2,15 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Inventory, Customer, Bill, BillItem
+from .models import Inventory, Customer, Bill, BillItem, NotificationSetting
 from django.db import transaction
 from django.http import HttpResponse
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from django.db.models.deletion import ProtectedError
+from django.core.mail import send_mail
+from django.conf import settings
+from twilio.rest import Client
 
 # Create your views here.
 
@@ -108,6 +112,37 @@ def create_bill(request):
                 BillItem.objects.create(bill=bill, inventory=inventory, quantity=qty, price=price)
                 inventory.quantity -= qty
                 inventory.save()
+
+                # Low stock alert logic
+                setting = NotificationSetting.objects.first()
+                if inventory.quantity < 2 and not getattr(inventory, 'low_stock_alert_sent', False):
+                    # Send email
+                    if setting and setting.email:
+                        send_mail(
+                            'Low Stock Alert',
+                            f'Item "{inventory.name}" is low on stock (quantity: {inventory.quantity}).',
+                            'noreply@example.com',
+                            [setting.email],
+                            fail_silently=True,
+                        )
+                    # Send SMS via Twilio
+                    if setting and setting.phone_number:
+                        try:
+                            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+                            client.messages.create(
+                                body=f"Item '{inventory.name}' is low on stock (quantity: {inventory.quantity})",
+                                from_=settings.TWILIO_PHONE_NUMBER,
+                                to=setting.phone_number
+                            )
+                        except Exception as sms_exc:
+                            print(f"Twilio SMS failed: {sms_exc}")
+                    # Mark alert as sent
+                    inventory.low_stock_alert_sent = True
+                    inventory.save(update_fields=["low_stock_alert_sent"])
+                elif inventory.quantity >= 2 and getattr(inventory, 'low_stock_alert_sent', False):
+                    # Reset alert flag if restocked
+                    inventory.low_stock_alert_sent = False
+                    inventory.save(update_fields=["low_stock_alert_sent"])
             return Response({'bill_id': bill.id, 'total': str(bill.total)}, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -250,3 +285,116 @@ def bill_pdf(request, id):
 
     except Exception as e:
         return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
+
+@api_view(['GET'])
+def list_bills(request):
+    search = request.GET.get('search', '').strip()
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    bills = Bill.objects.select_related('customer').all().order_by('-date')
+    if search:
+        if search.isdigit():
+            bills = bills.filter(id=int(search))
+        else:
+            bills = bills.filter(customer__name__icontains=search)
+    if start_date:
+        bills = bills.filter(date__gte=start_date)
+    if end_date:
+        bills = bills.filter(date__lte=end_date)
+    data = [
+        {
+            'id': bill.id,
+            'date': bill.date,
+            'total': str(bill.total),
+            'customer': bill.customer.name,
+        }
+        for bill in bills
+    ]
+    return Response(data)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def inventory_detail(request, id):
+    try:
+        item = Inventory.objects.get(id=id)
+        if request.method == 'GET':
+            return Response({
+                'id': item.id,
+                'name': item.name,
+                'description': item.description,
+                'quantity': item.quantity,
+                'price': str(item.price),
+                'created_at': item.created_at,
+                'updated_at': item.updated_at,
+            })
+        elif request.method == 'PUT':
+            data = request.data
+            item.name = data.get('name', item.name)
+            item.description = data.get('description', item.description)
+            item.quantity = data.get('quantity', item.quantity)
+            item.price = data.get('price', item.price)
+            item.save()
+
+            # Low stock alert logic
+            setting = NotificationSetting.objects.first()
+            if item.quantity < 2 and not getattr(item, 'low_stock_alert_sent', False):
+                # Send email
+                if setting and setting.email:
+                    send_mail(
+                        'Low Stock Alert',
+                        f'Item {item.name} is low on stock (quantity: {item.quantity}).',
+                        'noreply@example.com',
+                        [setting.email],
+                        fail_silently=True,
+                    )
+                # Send SMS via Twilio
+                if setting and setting.phone_number:
+                    try:
+                        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+                        client.messages.create(
+                            body=f"Item 'Low Stock Alert!{item.name}' is low on stock (quantity: {item.quantity})",
+                            from_=settings.TWILIO_PHONE_NUMBER,
+                            to=setting.phone_number
+                        )
+                    except Exception as sms_exc:
+                        print(f"Twilio SMS failed: {sms_exc}")
+                # Mark alert as sent
+                item.low_stock_alert_sent = True
+                item.save(update_fields=["low_stock_alert_sent"])
+            elif item.quantity >= 2 and getattr(item, 'low_stock_alert_sent', False):
+                # Reset alert flag if restocked
+                item.low_stock_alert_sent = False
+                item.save(update_fields=["low_stock_alert_sent"])
+            return Response({'success': True})
+        elif request.method == 'DELETE':
+            try:
+                item.delete()
+                return Response({'success': True})
+            except ProtectedError:
+                return Response(
+                    {'error': 'Cannot delete this item because it is used in bills.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+    except Inventory.DoesNotExist:
+        return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(["GET", "POST"])
+def notification_setting(request):
+    # Always use the first (and only) NotificationSetting
+    setting, created = NotificationSetting.objects.get_or_create(id=1)
+    if request.method == "GET":
+        return Response({
+            "phone_number": setting.phone_number,
+            "email": setting.email,
+        })
+    elif request.method == "POST":
+        phone = request.data.get("phone_number")
+        email = request.data.get("email")
+        if phone is not None:
+            setting.phone_number = phone
+        if email is not None:
+            setting.email = email
+        setting.save()
+        return Response({
+            "phone_number": setting.phone_number,
+            "email": setting.email,
+        })

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import add_inventory, list_inventory, list_customers, add_customer, create_bill, edit_customer, customer_history, bill_details, bill_pdf
+from .views import add_inventory, list_inventory, list_customers, add_customer, create_bill, edit_customer, customer_history, bill_details, bill_pdf, list_bills, inventory_detail, notification_setting
 
 urlpatterns = [
     path('add/', add_inventory, name='add_inventory'),
@@ -11,4 +11,7 @@ urlpatterns = [
     path('bill/<int:id>/details/', bill_details, name='bill_details'),
     path('bill/create/', create_bill, name='create_bill'),
     path('bill/<int:id>/pdf/', bill_pdf, name='bill_pdf'),
+    path('bills/', list_bills, name='list_bills'),
+    path('<int:id>/', inventory_detail, name='inventory_detail'),
+    path('notification-setting/', notification_setting, name='notification_setting'),
 ] 

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 export default function BillingPage() {
   // Customer state
@@ -259,6 +260,7 @@ export default function BillingPage() {
           <button onClick={handleSubmitBill} disabled={!selectedCustomer || billItems.length === 0 || submitting} className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-800 transition-colors disabled:opacity-50">
             {submitting ? "Processing..." : "Create Bill"}
           </button>
+          
         </div>
         {billMsg && (
           <div className="mt-4 text-center text-lg text-green-700 dark:text-green-400 font-semibold">

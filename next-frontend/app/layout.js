@@ -21,19 +21,23 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-gray-50 to-gray-200 dark:from-[#18181b] dark:to-[#23272f]`}
       >
-        <nav className="w-full bg-white dark:bg-zinc-900 shadow mb-8">
+        <nav className="w-full bg-white dark:bg-zinc-900 shadow mb-8 fixed top-0 left-0 z-50">
           <div className="max-w-5xl mx-auto px-4 py-3 flex gap-6 items-center">
             <Link href="/" className="font-bold text-lg text-blue-700 dark:text-blue-300">IBMS</Link>
             <Link href="/inventory" className="hover:underline text-gray-700 dark:text-gray-200">Inventory</Link>
             <Link href="/billing" className="hover:underline text-gray-700 dark:text-gray-200">Billing</Link>
+            <Link href="/billing/bills" className="hover:underline text-gray-700 dark:text-gray-200">View Bills</Link>
+            
             <Link href="/customers" className="hover:underline text-gray-700 dark:text-gray-200">Customers</Link>
             <Link href="/reports" className="hover:underline text-gray-700 dark:text-gray-200">Reports</Link>
             <Link href="/settings" className="hover:underline text-gray-700 dark:text-gray-200">Settings</Link>
           </div>
         </nav>
-        {children}
+        <div className="pt-20">{/* Add padding to prevent content from being hidden behind navbar */}
+          {children}
+        </div>
       </body>
     </html>
   );
