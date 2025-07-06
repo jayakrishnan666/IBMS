@@ -4,13 +4,18 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Inventory, Customer, Bill, BillItem, NotificationSetting
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from django.db.models.deletion import ProtectedError
 from django.core.mail import send_mail
 from django.conf import settings
 from twilio.rest import Client
+from django.views.decorators.csrf import csrf_exempt
+import json
+import base64
+import requests
+import re
 
 # Create your views here.
 
@@ -398,3 +403,53 @@ def notification_setting(request):
             "phone_number": setting.phone_number,
             "email": setting.email,
         })
+
+@csrf_exempt
+def recognize_item_ai(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST request required.'}, status=405)
+    try:
+        data = json.loads(request.body)
+        image_data = data.get('image')
+        if not image_data:
+            return JsonResponse({'error': 'No image provided.'}, status=400)
+        # Remove data:image/jpeg;base64, prefix if present
+        if image_data.startswith('data:image'):
+            image_data = image_data.split(',')[1]
+        # Gemini Vision API call
+        api_key = settings.GEMINI_API_KEY
+        print("Gemini API Key loaded:", api_key[:6] + "..." if api_key else None)
+        gemini_url = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=' + api_key
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": "Identify the object in this image and provide a short name and a concise description suitable for an inventory system. Respond in JSON with 'name' and 'description' fields only."},
+                        {"inlineData": {"mimeType": "image/jpeg", "data": image_data}}
+                    ]
+                }
+            ]
+        }
+        print("Gemini API payload:", str(payload)[:500])
+        response = requests.post(gemini_url, json=payload)
+        if response.status_code != 200:
+            print("Gemini API error details:", response.text)
+            return JsonResponse({'error': 'Gemini API error', 'details': response.text}, status=500)
+        gemini_data = response.json()
+        # Parse Gemini response for JSON with name/description
+        try:
+            # Extract JSON from Gemini's text response
+            text = gemini_data['candidates'][0]['content']['parts'][0]['text']
+            match = re.search(r'\{.*\}', text, re.DOTALL)
+            if match:
+                ai_result = json.loads(match.group(0))
+                return JsonResponse({
+                    'name': ai_result.get('name', ''),
+                    'description': ai_result.get('description', '')
+                })
+            else:
+                return JsonResponse({'error': 'Could not parse AI response', 'raw': text}, status=500)
+        except Exception as e:
+            return JsonResponse({'error': 'Error parsing AI response', 'details': str(e), 'raw': gemini_data}, status=500)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

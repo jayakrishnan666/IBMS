@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import add_inventory, list_inventory, list_customers, add_customer, create_bill, edit_customer, customer_history, bill_details, bill_pdf, list_bills, inventory_detail, notification_setting
+from .views import add_inventory, list_inventory, list_customers, add_customer, create_bill, edit_customer, customer_history, bill_details, bill_pdf, list_bills, inventory_detail, notification_setting, recognize_item_ai
 
 urlpatterns = [
     path('add/', add_inventory, name='add_inventory'),
@@ -14,4 +14,5 @@ urlpatterns = [
     path('bills/', list_bills, name='list_bills'),
     path('<int:id>/', inventory_detail, name='inventory_detail'),
     path('notification-setting/', notification_setting, name='notification_setting'),
+    path('ai/recognize-item/', recognize_item_ai, name='recognize_item_ai'),
 ] 
