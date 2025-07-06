@@ -23,6 +23,8 @@ export default function BillingPage() {
   const [billMsg, setBillMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [lastBillId, setLastBillId] = useState(null);
+  const [lastBillItems, setLastBillItems] = useState([]);
+  const [lastBillTotal, setLastBillTotal] = useState(0);
 
   // Fetch customers and inventory
   useEffect(() => {
@@ -127,6 +129,8 @@ export default function BillingPage() {
     if (res.ok) {
       setBillMsg(`Bill created! Total: ₹${data.total}`);
       setLastBillId(data.bill_id);
+      setLastBillItems(billItems);
+      setLastBillTotal(total);
       setBillItems([]);
       fetchInventory();
     } else {
@@ -265,7 +269,7 @@ export default function BillingPage() {
         {billMsg && (
           <div className="mt-4 text-center text-lg text-green-700 dark:text-green-400 font-semibold">
             {billMsg}
-            {lastBillId && (
+            {lastBillId && selectedCustomer && (
               <div className="flex flex-col sm:flex-row gap-2 justify-center mt-4">
                 <a
                   href={`http://localhost:8000/api/inventory/bill/${lastBillId}/pdf/`}
@@ -276,12 +280,16 @@ export default function BillingPage() {
                   Print Bill (PDF)
                 </a>
                 <a
-                  href={`https://wa.me/?text=${encodeURIComponent('Here is your bill: http://localhost:8000/api/inventory/bill/' + lastBillId + '/pdf/')}`}
+                  href={`https://wa.me/${selectedCustomer.phone}?text=${encodeURIComponent(
+                    `Dear ${selectedCustomer.name}, here is your bill #${lastBillId}:\n` +
+                    lastBillItems.map(item => `- ${item.name}: ${item.quantity} x ₹${item.price} = ₹${item.quantity * item.price}`).join("\n") +
+                    `\nTotal: ₹${lastBillTotal.toFixed(2)}\nThank you for your purchase!`
+                  )}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-semibold text-base"
                 >
-                  Share to WhatsApp
+                  Send Bill to Customer WhatsApp
                 </a>
               </div>
             )}
