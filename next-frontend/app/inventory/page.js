@@ -75,7 +75,7 @@ export default function InventoryPage() {
   const lowStockItems = items.filter(item => item.quantity < 2);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 dark:from-[#18181b] dark:to-[#23272f] p-4 sm:p-8">
+    <div className="min-\h-screen bg-gradient-to-br from-gray-50 to-gray-200 dark:from-[#18181b] dark:to-[#23272f] p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-blue-800 dark:text-blue-300">Inventory List</h2>

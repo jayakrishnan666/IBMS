@@ -8,7 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from django.db.models.deletion import ProtectedError
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
 from django.conf import settings
 from twilio.rest import Client
 from django.views.decorators.csrf import csrf_exempt
@@ -453,3 +453,195 @@ def recognize_item_ai(request):
             return JsonResponse({'error': 'Error parsing AI response', 'details': str(e), 'raw': gemini_data}, status=500)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+# --- REPORTS API VIEWS ---
+from django.db.models import Sum, Count, F
+from datetime import timedelta
+from django.utils import timezone
+import io
+
+@api_view(['GET'])
+def report_summary(request):
+    total_sales = Bill.objects.aggregate(total=Sum('total'))['total'] or 0
+    transactions = Bill.objects.count()
+    avg_bill = Bill.objects.aggregate(avg=Sum('total')/Count('id'))['avg'] if transactions else 0
+    low_stock = Inventory.objects.filter(quantity__lt=2).count()
+    return Response({
+        'total_sales': float(total_sales),
+        'transactions': transactions,
+        'avg_bill': float(avg_bill) if avg_bill else 0,
+        'low_stock': low_stock,
+    })
+
+@api_view(['GET'])
+def report_top_products(request):
+    top = (
+        BillItem.objects.values('inventory__name')
+        .annotate(units_sold=Sum('quantity'), revenue=Sum(F('quantity') * F('price')))
+        .order_by('-units_sold')[:10]
+    )
+    return Response([
+        {
+            'name': item['inventory__name'],
+            'units_sold': item['units_sold'],
+            'revenue': float(item['revenue'])
+        } for item in top
+    ])
+
+@api_view(['GET'])
+def report_inventory_status(request):
+    low_stock_items = Inventory.objects.filter(quantity__lt=2)
+    return Response([
+        {'name': item.name, 'stock': item.quantity} for item in low_stock_items
+    ])
+
+@api_view(['GET'])
+def report_recent_transactions(request):
+    recent = Bill.objects.select_related('customer').order_by('-date')[:10]
+    return Response([
+        {
+            'date': bill.date.strftime('%Y-%m-%d %H:%M'),
+            'bill_no': bill.id,
+            'customer': bill.customer.name,
+            'total': float(bill.total)
+        } for bill in recent
+    ])
+
+@api_view(['GET'])
+def report_sales_trend(request):
+    # Last 14 days sales
+    today = timezone.now().date()
+    days = [today - timedelta(days=i) for i in range(13, -1, -1)]
+    data = []
+    for day in days:
+        total = Bill.objects.filter(date__date=day).aggregate(total=Sum('total'))['total'] or 0
+        data.append({'date': day.strftime('%Y-%m-%d'), 'sales': float(total)})
+    return Response(data)
+
+@api_view(['POST'])
+def report_send_to_manager(request):
+    setting = NotificationSetting.objects.first()
+    if not setting or not setting.email:
+        return Response({'error': 'Manager email not set.'}, status=400)
+
+    # Gather data
+    total_sales = Bill.objects.aggregate(total=Sum('total'))['total'] or 0
+    transactions = Bill.objects.count()
+    avg_bill = Bill.objects.aggregate(avg=Sum('total')/Count('id'))['avg'] if transactions else 0
+    low_stock_items = Inventory.objects.filter(quantity__lt=2)
+    top_products = (
+        BillItem.objects.values('inventory__name')
+        .annotate(units_sold=Sum('quantity'), revenue=Sum(F('quantity') * F('price')))
+        .order_by('-units_sold')[:10]
+    )
+    # Sales trend for top day/month
+    from datetime import timedelta
+    from django.utils import timezone
+    today = timezone.now().date()
+    days = [today - timedelta(days=i) for i in range(29, -1, -1)]
+    trend = []
+    for day in days:
+        total = Bill.objects.filter(date__date=day).aggregate(total=Sum('total'))['total'] or 0
+        trend.append({'date': day.strftime('%Y-%m-%d'), 'sales': float(total)})
+    # Top day
+    top_day = max(trend, key=lambda x: x['sales']) if trend else None
+    # Top month
+    month_map = {}
+    for item in trend:
+        month = item['date'][:7]  # YYYY-MM
+        month_map[month] = month_map.get(month, 0) + item['sales']
+    top_month = max(month_map.items(), key=lambda x: x[1]) if month_map else None
+
+    # Generate PDF in memory
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    y = height - 50
+
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(50, y, "Report Summary")
+    y -= 30
+
+    p.setFont("Helvetica", 12)
+    p.drawString(50, y, f"Total Sales: {total_sales}")
+    y -= 20
+    p.drawString(50, y, f"Total Transactions: {transactions}")
+    y -= 20
+    p.drawString(50, y, f"Average Bill: {avg_bill}")
+    y -= 30
+
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, y, "Low Stock Items:")
+    y -= 18
+    p.setFont("Helvetica", 11)
+    if low_stock_items:
+        p.drawString(60, y, "Product Name           Stock")
+        y -= 15
+        for item in low_stock_items:
+            p.drawString(60, y, f"{item.name:20} {item.quantity}")
+            y -= 15
+    else:
+        p.drawString(60, y, "None")
+        y -= 15
+    y -= 10
+
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, y, "Top Selling Products:")
+    y -= 18
+    p.setFont("Helvetica", 11)
+    if top_products:
+        p.drawString(60, y, "Product Name           Units Sold   Revenue")
+        y -= 15
+        for prod in top_products:
+            p.drawString(60, y, f"{prod['inventory__name']:20} {prod['units_sold']:10}   {prod['revenue']}")
+            y -= 15
+    else:
+        p.drawString(60, y, "None")
+        y -= 15
+    y -= 10
+
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, y, "Top Selling Day:")
+    y -= 18
+    p.setFont("Helvetica", 11)
+    if top_day:
+        p.drawString(60, y, f"{top_day['date']} (Sales: {top_day['sales']})")
+        y -= 15
+    else:
+        p.drawString(60, y, "N/A")
+        y -= 15
+    y -= 10
+
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, y, "Top Selling Month:")
+    y -= 18
+    p.setFont("Helvetica", 11)
+    if top_month:
+        p.drawString(60, y, f"{top_month[0]} (Sales: {top_month[1]})")
+        y -= 15
+    else:
+        p.drawString(60, y, "N/A")
+        y -= 15
+    y -= 20
+
+    p.setFont("Helvetica-Oblique", 10)
+    p.drawString(50, y, "Generated by IBMS System")
+    p.save()
+
+    buffer.seek(0)
+    pdf_data = buffer.getvalue()
+
+    # Create email with PDF attachment
+    email = EmailMessage(
+        subject=' Report Summary',
+        body='Please find the attached PDF report.',
+        from_email='noreply@example.com',
+        to=[setting.email],
+    )
+    email.attach('report_summary.pdf', pdf_data, 'application/pdf')
+    try:
+        email.send(fail_silently=False)
+        return Response({'success': True})
+    except Exception as e:
+        print("EMAIL ERROR:", e)
+        return Response({'error': str(e)}, status=500)

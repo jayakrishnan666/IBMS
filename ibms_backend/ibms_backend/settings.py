@@ -97,6 +97,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Twilio SMS settings
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
