@@ -113,6 +113,9 @@ export default function BillingPage() {
 
   // Bill summary
   const total = billItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  // Dashboard summary cards (for demo: show total items, total quantity, total value)
+  const totalBillItems = billItems.length;
+  const totalBillQuantity = billItems.reduce((sum, i) => sum + i.quantity, 0);
 
   // Submit bill
   const handleSubmitBill = async e => {
@@ -141,35 +144,67 @@ export default function BillingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 dark:from-[#18181b] dark:to-[#23272f] p-4 sm:p-8">
-      <div className="max-w-4xl mx-auto bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow border border-gray-200 dark:border-zinc-800">
-        <h1 className="text-2xl font-bold mb-6 text-blue-800 dark:text-blue-300">Create Bill</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 dark:from-[#18181b] dark:to-[#23272f] p-0">
+      {/* Dashboard Header */}
+      <div className="w-full px-8 py-8 bg-white dark:bg-zinc-900 shadow flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-200 dark:border-zinc-800">
+        <div className="flex items-center gap-3 mb-1">
+          <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900">
+            <svg className="w-7 h-7 text-blue-700 dark:text-blue-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2a4 4 0 014-4h6m-6 0V7a4 4 0 014-4h2a4 4 0 014 4v2a4 4 0 01-4 4h-2a4 4 0 01-4-4V7" /></svg>
+          </span>
+          <div>
+            <h1 className="text-3xl font-bold text-blue-800 dark:text-blue-300">Billing Dashboard</h1>
+            <div className="text-gray-600 dark:text-gray-400 text-base ml-1">Create and manage customer bills efficiently.</div>
+          </div>
+        </div>
+        <Link href="/inventory">
+          <button className="bg-blue-700 text-white py-3 px-8 rounded-xl font-semibold hover:bg-blue-800 transition-colors text-lg shadow">Go to Inventory</button>
+        </Link>
+      </div>
+
+      {/* Dashboard Stats */}
+      <div className="w-full px-8 py-8 grid grid-cols-1 sm:grid-cols-3 gap-8 bg-gradient-to-r from-blue-50/60 to-blue-100/40 dark:from-zinc-900 dark:to-zinc-800 border-b border-gray-200 dark:border-zinc-800">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow border border-gray-200 dark:border-zinc-800 p-8 flex flex-col items-center">
+          <div className="text-gray-500 text-xs mb-1">Bill Items</div>
+          <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">{totalBillItems}</div>
+        </div>
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow border border-gray-200 dark:border-zinc-800 p-8 flex flex-col items-center">
+          <div className="text-gray-500 text-xs mb-1">Total Quantity</div>
+          <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">{totalBillQuantity}</div>
+        </div>
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow border border-gray-200 dark:border-zinc-800 p-8 flex flex-col items-center">
+          <div className="text-gray-500 text-xs mb-1">Total Value</div>
+          <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">₹{total.toFixed(2)}</div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="w-full max-w-5xl mx-auto bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow border border-gray-200 dark:border-zinc-800 mt-8">
         {/* Customer Section */}
-        <div className="mb-8">
-          <h2 className="font-semibold text-lg mb-2 text-gray-800 dark:text-gray-100">Customer</h2>
+        <div className="mb-10">
+          <h2 className="font-semibold text-xl mb-3 text-gray-800 dark:text-gray-100">Customer</h2>
           {selectedCustomer ? (
-            <div className="flex items-center gap-4 mb-2">
-              <div className="font-semibold">{selectedCustomer.name}</div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-2">
+              <div className="font-semibold text-lg">{selectedCustomer.name}</div>
               <div className="text-sm text-gray-500">{selectedCustomer.email} | {selectedCustomer.phone}</div>
-              <button className="ml-4 text-blue-600 hover:underline text-sm" onClick={() => setSelectedCustomer(null)}>Change</button>
+              <button className="sm:ml-4 text-blue-600 hover:underline text-sm" onClick={() => setSelectedCustomer(null)}>Change</button>
             </div>
           ) : showRegister ? (
             <form onSubmit={handleRegister} className="flex flex-col md:flex-row gap-2 md:items-end mb-2">
-              <input type="text" name="name" placeholder="Name" value={registerForm.name} onChange={handleRegisterChange} required className="px-3 py-2 border rounded dark:bg-zinc-800 dark:text-white" />
-              <input type="email" name="email" placeholder="Email" value={registerForm.email} onChange={handleRegisterChange} required className="px-3 py-2 border rounded dark:bg-zinc-800 dark:text-white" />
-              <input type="text" name="phone" placeholder="Phone" value={registerForm.phone} onChange={handleRegisterChange} required className="px-3 py-2 border rounded dark:bg-zinc-800 dark:text-white" />
-              <button type="submit" className="bg-blue-700 text-white px-4 py-2 rounded">Register</button>
+              <input type="text" name="name" placeholder="Name" value={registerForm.name} onChange={handleRegisterChange} required className="px-4 py-3 border rounded-xl dark:bg-zinc-800 dark:text-white" />
+              <input type="email" name="email" placeholder="Email" value={registerForm.email} onChange={handleRegisterChange} required className="px-4 py-3 border rounded-xl dark:bg-zinc-800 dark:text-white" />
+              <input type="text" name="phone" placeholder="Phone" value={registerForm.phone} onChange={handleRegisterChange} required className="px-4 py-3 border rounded-xl dark:bg-zinc-800 dark:text-white" />
+              <button type="submit" className="bg-blue-700 text-white px-6 py-3 rounded-xl">Register</button>
               <button type="button" className="text-gray-500 ml-2" onClick={() => setShowRegister(false)}>Cancel</button>
             </form>
           ) : (
             <div className="flex flex-col md:flex-row gap-2 md:items-end mb-2">
-              <input type="text" placeholder="Search customer by name or phone" value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} className="px-3 py-2 border rounded dark:bg-zinc-800 dark:text-white flex-1" />
-              <button className="bg-blue-700 text-white px-4 py-2 rounded" onClick={() => setShowRegister(true)}>Register New</button>
+              <input type="text" placeholder="Search customer by name or phone" value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} className="px-4 py-3 border rounded-xl dark:bg-zinc-800 dark:text-white flex-1" />
+              <button className="bg-blue-700 text-white px-6 py-3 rounded-xl" onClick={() => setShowRegister(true)}>Register New</button>
             </div>
           )}
           {registerMsg && <div className="text-green-700 dark:text-green-400 text-sm mb-2">{registerMsg}</div>}
           {!selectedCustomer && !showRegister && customerSearch.length > 0 && (
-            <div className="max-h-32 overflow-y-auto border rounded bg-gray-50 dark:bg-zinc-800">
+            <div className="max-h-32 overflow-y-auto border rounded-xl bg-gray-50 dark:bg-zinc-800 mt-2">
               {filteredCustomers.length === 0 ? (
                 <div className="p-2 text-gray-500">No customers found.</div>
               ) : filteredCustomers.map(c => (
@@ -181,8 +216,8 @@ export default function BillingPage() {
           )}
         </div>
         {/* Item Section */}
-        <div className="mb-8">
-          <h2 className="font-semibold text-lg mb-2 text-gray-800 dark:text-gray-100">Add Items</h2>
+        <div className="mb-10">
+          <h2 className="font-semibold text-xl mb-3 text-gray-800 dark:text-gray-100">Add Items</h2>
           <div className="flex flex-col md:flex-row gap-2 md:items-end mb-2 relative">
             <div className="flex-1 relative">
               <input
@@ -195,11 +230,11 @@ export default function BillingPage() {
                   setItemToAdd({ inventory_id: "", quantity: 1 });
                 }}
                 onFocus={() => setShowItemDropdown(true)}
-                className="px-3 py-2 border rounded dark:bg-zinc-800 dark:text-white w-full"
+                className="px-4 py-3 border rounded-xl dark:bg-zinc-800 dark:text-white w-full"
                 autoComplete="off"
               />
               {showItemDropdown && itemSearch.length > 0 && (
-                <div className="absolute z-10 left-0 right-0 bg-white dark:bg-zinc-800 border rounded shadow max-h-40 overflow-y-auto">
+                <div className="absolute z-10 left-0 right-0 bg-white dark:bg-zinc-800 border rounded-xl shadow max-h-40 overflow-y-auto">
                   {filteredInventory.length === 0 ? (
                     <div className="p-2 text-gray-500">No items found.</div>
                   ) : filteredInventory.map(i => (
@@ -223,22 +258,22 @@ export default function BillingPage() {
                 value={itemToAdd.quantity}
                 onChange={e => setItemToAdd({ ...itemToAdd, quantity: e.target.value })}
                 required
-                className="px-3 py-2 border rounded dark:bg-zinc-800 dark:text-white w-24"
+                className="px-4 py-3 border rounded-xl dark:bg-zinc-800 dark:text-white w-24"
                 placeholder="Qty"
                 disabled={!itemToAdd.inventory_id}
               />
-              <button type="submit" className="bg-blue-700 text-white px-4 py-2 rounded" disabled={!itemToAdd.inventory_id}>Add</button>
+              <button type="submit" className="bg-blue-700 text-white px-6 py-3 rounded-xl" disabled={!itemToAdd.inventory_id}>Add</button>
             </form>
           </div>
           {addItemMsg && <div className="text-red-600 text-sm mb-2">{addItemMsg}</div>}
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="min-w-full text-base">
               <thead>
                 <tr className="bg-gray-100 dark:bg-zinc-800">
-                  <th className="px-3 py-2 text-left font-semibold">Item</th>
-                  <th className="px-3 py-2 text-right font-semibold">Price</th>
-                  <th className="px-3 py-2 text-right font-semibold">Quantity</th>
-                  <th className="px-3 py-2 text-right font-semibold">Total</th>
+                  <th className="px-4 py-3 text-left font-semibold">Item</th>
+                  <th className="px-4 py-3 text-right font-semibold">Price</th>
+                  <th className="px-4 py-3 text-right font-semibold">Quantity</th>
+                  <th className="px-4 py-3 text-right font-semibold">Total</th>
                   <th></th>
                 </tr>
               </thead>
@@ -246,12 +281,12 @@ export default function BillingPage() {
                 {billItems.length === 0 ? (
                   <tr><td colSpan={5} className="text-center text-gray-500 py-2">No items added.</td></tr>
                 ) : billItems.map(item => (
-                  <tr key={item.inventory_id}>
-                    <td className="px-3 py-2">{item.name}</td>
-                    <td className="px-3 py-2 text-right">₹{item.price.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right">{item.quantity}</td>
-                    <td className="px-3 py-2 text-right">₹{(item.price * item.quantity).toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right"><button className="text-red-600 hover:underline" onClick={() => handleRemoveItem(item.inventory_id)}>Remove</button></td>
+                  <tr key={item.inventory_id} className="hover:bg-blue-50/40 dark:hover:bg-zinc-800/60 transition-colors">
+                    <td className="px-4 py-3">{item.name}</td>
+                    <td className="px-4 py-3 text-right">₹{item.price.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right">{item.quantity}</td>
+                    <td className="px-4 py-3 text-right">₹{(item.price * item.quantity).toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right"><button className="text-red-600 hover:underline" onClick={() => handleRemoveItem(item.inventory_id)}>Remove</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -259,15 +294,14 @@ export default function BillingPage() {
           </div>
         </div>
         {/* Bill Summary & Submit */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t pt-4">
-          <div className="text-lg font-semibold text-gray-700 dark:text-gray-200">Total: <span className="text-blue-700 dark:text-blue-300">₹{total.toFixed(2)}</span></div>
-          <button onClick={handleSubmitBill} disabled={!selectedCustomer || billItems.length === 0 || submitting} className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-800 transition-colors disabled:opacity-50">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t pt-6">
+          <div className="text-xl font-semibold text-gray-700 dark:text-gray-200">Total: <span className="text-blue-700 dark:text-blue-300">₹{total.toFixed(2)}</span></div>
+          <button onClick={handleSubmitBill} disabled={!selectedCustomer || billItems.length === 0 || submitting} className="bg-green-700 text-white px-8 py-3 rounded-xl font-semibold hover:bg-green-800 transition-colors disabled:opacity-50 text-lg">
             {submitting ? "Processing..." : "Create Bill"}
           </button>
-          
         </div>
         {billMsg && (
-          <div className="mt-4 text-center text-lg text-green-700 dark:text-green-400 font-semibold">
+          <div className="mt-6 text-center text-lg text-green-700 dark:text-green-400 font-semibold">
             {billMsg}
             {lastBillId && selectedCustomer && (
               <div className="flex flex-col sm:flex-row gap-2 justify-center mt-4">
